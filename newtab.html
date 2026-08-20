@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>GoGo — стартовая страница</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg" id="bg">
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+    <div class="orb orb4"></div>
+  </div>
+
+  <header>
+    <div class="logo">Go<span>Go</span></div>
+    <input id="search" type="search" placeholder="Поиск вкладки..." autocomplete="off">
+    <div class="header-right">
+      <select id="themeSelect" class="theme-select" title="Фон">
+        <option value="gradient">Градиент</option>
+        <option value="dark">Тёмный</option>
+        <option value="nature">Природа</option>
+        <option value="neon">Неон</option>
+      </select>
+      <div class="settings-wrap">
+        <button id="settingsBtn" class="settings-btn" title="Настройки">⚙</button>
+        <div id="settingsPanel" class="settings-panel" hidden>
+          <h3>Настройки</h3>
+          <label>Колонок
+            <input type="number" id="gridCols" min="1" max="12" value="6">
+          </label>
+          <label>Размер плиток
+            <select id="tileSize">
+              <option value="large">Большие</option>
+              <option value="medium" selected>Средние</option>
+              <option value="small">Маленькие</option>
+            </select>
+          </label>
+          <button id="settingsApply">Применить</button>
+          <hr>
+          <button id="exportBtn">📤 Экспорт настроек</button>
+          <button id="importBtn">📥 Импорт настроек</button>
+          <input type="file" id="importFile" accept=".json,application/json" hidden>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="content"></main>
+
+  <div id="ctxMenu" class="ctx-menu" hidden></div>
+  <div id="toast" class="toast"></div>
+
+  <div id="addModal" class="modal-overlay" hidden>
+    <div class="modal">
+      <h3 id="addModalTitle">Новая закладка</h3>
+      <form id="addForm" novalidate>
+        <label id="urlLabel">
+          <span>URL</span>
+          <input type="text" id="newUrl" placeholder="https://example.com" autocomplete="off">
+        </label>
+        <label>
+          <span>Название</span>
+          <input type="text" id="newTitle" placeholder="Пусто = домен сайта" autocomplete="off">
+        </label>
+        <div class="modal-actions">
+          <button type="button" id="addCancel" class="btn-cancel">Отмена</button>
+          <button type="submit" class="btn-ok">Добавить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
