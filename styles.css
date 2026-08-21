@@ -652,6 +652,54 @@ button.crumb:hover {
   box-shadow: 0 8px 20px rgba(255,94,98,.5);
 }
 
+/* Светлые темы (candy, light) */
+body.light-ui #search,
+body.light-ui .theme-select,
+body.light-ui .settings-btn {
+  color: #333;
+  border-color: rgba(0,0,0,.2);
+}
+
+body.light-ui #search::placeholder { color: rgba(0,0,0,.45); }
+
+body.light-ui .theme-select option { background: #f8bbd0; color: #333; }
+
+body.light-ui .settings-panel input[type="number"],
+body.light-ui .settings-panel select {
+  color: #333;
+  border-color: rgba(0,0,0,.2);
+}
+
+body.light-ui .tile {
+  color: #333;
+  background: rgba(255,255,255,.5);
+  border-color: rgba(0,0,0,.1);
+}
+
+body.light-ui .tile:hover {
+  background: rgba(255,255,255,.75);
+  box-shadow: 0 16px 40px rgba(0,0,0,.18);
+}
+
+body.light-ui .preview { background: rgba(0,0,0,.06); }
+body.light-ui .preview .fallback { color: #333; }
+
+body.light-ui .crumb {
+  color: rgba(0,0,0,.6);
+  background: rgba(0,0,0,.06);
+}
+
+body.light-ui button.crumb:hover {
+  color: #fff;
+  border-color: rgba(255,94,98,.5);
+}
+
+body.light-ui .crumb.current { color: #fff; }
+body.light-ui .crumb-sep { color: rgba(0,0,0,.35); }
+body.light-ui .empty p { color: rgba(0,0,0,.55); }
+body.light-ui .empty code { background: rgba(0,0,0,.08); }
+body.light-ui .tile-more { color: rgba(0,0,0,.5); }
+
 /* Адаптивность */
 @media (max-width: 800px) {
   header {

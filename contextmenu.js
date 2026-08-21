@@ -29,13 +29,18 @@ document.addEventListener('contextmenu', e => {
   }
   if (tile) {
     ctxTarget = tile;
-    showCtxMenu(e.clientX, e.clientY, [
+    const items = [
       { act: 'edit', label: '✏️ Изменить закладку' },
-      { act: 'refresh', label: '🔄 Обновить превью' },
-      { act: 'delpreview', label: '🗑 Удалить превью' },
+      { act: 'refresh', label: '🔄 Обновить превью' }
+    ];
+    if (tile.querySelector('.preview img.thumb')) {
+      items.push({ act: 'delpreview', label: '🗑 Удалить превью' });
+    }
+    items.push(
       { act: 'open', label: '↗ Открыть в новой вкладке' },
       { act: 'delete', label: '✖ Удалить закладку', danger: true }
-    ]);
+    );
+    showCtxMenu(e.clientX, e.clientY, items);
   } else {
     showCtxMenu(e.clientX, e.clientY, [
       { act: 'add', label: '➕ Добавить закладку' },
