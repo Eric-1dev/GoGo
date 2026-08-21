@@ -186,8 +186,6 @@ function tile(bookmark, parentId) {
   const a = document.createElement('a');
   a.className = 'tile';
   a.href = bookmark.url;
-  a.target = '_blank';
-  a.rel = 'noopener';
   a.draggable = true;
   a.dataset.url = bookmark.url;
   a.dataset.id = bookmark.id;
