@@ -17,24 +17,27 @@
     <div class="logo">Go<span>Go</span></div>
     <input id="search" type="search" placeholder="Поиск вкладки..." autocomplete="off">
     <div class="header-right">
-      <select id="themeSelect" class="theme-select" title="Фон">
-        <option value="gradient">Градиент</option>
-        <option value="dark">Тёмный</option>
-        <option value="light">Светлый</option>
-        <option value="nature">Природа</option>
-        <option value="neon">Неон</option>
-        <option value="sunset">Закат</option>
-        <option value="ocean">Океан</option>
-        <option value="candy">Карамель</option>
-        <option value="coffee">Кофе</option>
-        <option value="aurora">Аврора</option>
-      </select>
       <div class="settings-wrap">
         <button id="settingsBtn" class="settings-btn" title="Настройки">⚙</button>
         <div id="settingsPanel" class="settings-panel" hidden>
           <h3>Настройки</h3>
+          <label>Тема
+            <div id="themePicker" class="theme-picker-inline">
+              <button id="themeBtn" class="theme-btn-inline" title="Фон" aria-haspopup="listbox">
+                <span id="themeBtnSwatch" class="theme-btn-swatch"></span>
+                <span id="themeBtnLabel">Градиент</span>
+              </button>
+              <div id="themeMenu" class="theme-menu-inline" role="listbox" hidden></div>
+            </div>
+          </label>
           <label>Колонок
-            <input type="number" id="gridCols" min="1" max="12" value="6">
+            <div class="delay-spin">
+              <input type="number" id="gridCols" min="1" max="12" value="6">
+              <div class="spin-btns">
+                <button type="button" class="spin-up grid-spin-up">▲</button>
+                <button type="button" class="spin-down grid-spin-down">▼</button>
+              </div>
+            </div>
           </label>
           <label>Размер плиток
             <select id="tileSize">
@@ -43,10 +46,9 @@
               <option value="small">Маленькие</option>
             </select>
           </label>
-          <button id="settingsApply">Применить</button>
           <hr>
-          <button id="exportBtn">📤 Экспорт настроек</button>
-          <button id="importBtn">📥 Импорт настроек</button>
+          <button id="exportBtn">📤 Экспорт закладок</button>
+          <button id="importBtn">📥 Импорт закладок</button>
           <input type="file" id="importFile" accept=".json,application/json" hidden>
         </div>
       </div>
@@ -75,6 +77,40 @@
           <button type="submit" class="btn-ok">Добавить</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="imageModal" class="modal-overlay" hidden>
+    <div class="modal">
+      <h3>Установить изображение</h3>
+      <label>
+        <span>Ссылка на изображение</span>
+        <input type="text" id="imageUrl" placeholder="https://example.com/photo.jpg" autocomplete="off">
+      </label>
+      <div class="image-modal-or">или</div>
+      <button type="button" id="imageFileBtn" class="btn-file">Выбрать файл с диска</button>
+      <input type="file" id="imageFileInput" accept="image/*" hidden>
+      <div class="image-modal-or">или</div>
+      <div class="screenshot-row">
+        <button type="button" id="imageScreenshotBtn" class="btn-file">Сделать скриншот</button>
+        <div class="screenshot-delay">
+          <div class="delay-spin">
+            <input type="number" id="screenshotDelay" min="1" max="30" value="5">
+            <div class="spin-btns">
+              <button type="button" class="spin-up" id="spinUp">▲</button>
+              <button type="button" class="spin-down" id="spinDown">▼</button>
+            </div>
+          </div>
+          <span>сек</span>
+        </div>
+      </div>
+      <div id="imagePreview" class="image-preview" hidden>
+        <img id="imagePreviewImg">
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="imageCancel" class="btn-cancel">Отмена</button>
+        <button type="button" id="imageApply" class="btn-ok">Установить</button>
+      </div>
     </div>
   </div>
 

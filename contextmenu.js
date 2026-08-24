@@ -1,6 +1,6 @@
 import { openAddModal, openEditModal, openAddFolderModal, openEditFolderModal } from './modal.js';
-import { makePreview, deletePreview } from './preview.js';
-import { deleteBookmark, moveBookmark, disbandFolder, deleteFolder, childrenOf, refreshBookmarks } from './bookmarks.js';
+import { deletePreview, openImageModal } from './preview.js';
+import { deleteBookmark, disbandFolder, deleteFolder, childrenOf, refreshBookmarks } from './bookmarks.js';
 import { toast } from './toast.js';
 
 const ctxMenu = document.getElementById('ctxMenu');
@@ -31,10 +31,10 @@ document.addEventListener('contextmenu', e => {
     ctxTarget = tile;
     const items = [
       { act: 'edit', label: '✏️ Изменить закладку' },
-      { act: 'refresh', label: '🔄 Обновить превью' }
+      { act: 'setimage', label: '🖼 Установить изображение' }
     ];
     if (tile.querySelector('.preview img.thumb')) {
-      items.push({ act: 'delpreview', label: '🗑 Удалить превью' });
+      items.push({ act: 'delpreview', label: '🗑 Удалить изображение' });
     }
     items.push(
       { act: 'open', label: '↗ Открыть в новой вкладке' },
@@ -75,14 +75,12 @@ ctxMenu.addEventListener('click', e => {
   if (act === 'addFolder') { openAddFolderModal(); return; }
   if (act === 'reloadView') { refreshBookmarks(); toast('Обновлено'); return; }
   if (act === 'rename') { if (tile) openEditFolderModal(tile); return; }
-  if (act === 'moveUp') { if (tile) moveBookmark(tile, -1); return; }
-  if (act === 'moveDown') { if (tile) moveBookmark(tile, 1); return; }
   if (act === 'disband') { if (tile) disbandFolder(tile); return; }
   if (act === 'deleteFull') { if (tile) deleteFolder(tile, true); return; }
   if (act === 'deleteEmpty') { if (tile) deleteFolder(tile, false); return; }
   if (!tile) return;
   if (act === 'edit') openEditModal(tile);
-  if (act === 'refresh') makePreview(tile);
+  if (act === 'setimage') openImageModal(tile);
   if (act === 'delpreview') deletePreview(tile);
   if (act === 'open') window.open(tile.href, '_blank', 'noopener');
   if (act === 'delete') deleteBookmark(tile);

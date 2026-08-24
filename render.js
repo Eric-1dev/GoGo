@@ -1,5 +1,5 @@
-import { state, FOLDER_NAME, favicon, host, previewKey } from './state.js';
-import { findFolder, childrenOf, doMove, dropIntoFolder, openFolder, navigateToCrumb, setRenderCallback } from './bookmarks.js';
+import { state, FOLDER_NAME, host, previewKey, faviconKey, fetchFavicon, PLACEHOLDER } from './state.js';
+import { findFolder, doMove, dropIntoFolder, openFolder, navigateToCrumb, moveToFolder, setRenderCallback } from './bookmarks.js';
 
 const content = document.getElementById('content');
 const search = document.getElementById('search');
@@ -39,18 +39,30 @@ export async function init() {
 }
 
 export function render() {
+  /* Переиспользуем существующие плитки: без этого каждое обновление
+     пересоздаёт DOM и перезагружает все превью — экран «мигает» */
+  const reuse = new Map();
+  content.querySelectorAll('.grid > .tile[data-id]').forEach(el => {
+    el.style.transform = '';
+    el.classList.remove('dragging', 'drag-over', 'hidden');
+    reuse.set(el.dataset.id, el);
+  });
+
   content.innerHTML = "";
   renderBreadcrumbs();
 
   const grid = document.createElement('div');
   grid.className = 'grid';
+  setupGridDnd(grid);
 
   if (state.breadcrumb.length > 1) {
     grid.appendChild(backTile());
   }
 
   state.currentChildren.forEach(child => {
-    grid.appendChild(child.url ? tile(child, state.currentFolderId) : folderTile(child));
+    const fresh = child.url ? tile(child, state.currentFolderId) : folderTile(child);
+    const old = reuse.get(child.id);
+    grid.appendChild(sameData(old, fresh) ? old : fresh);
   });
 
   content.appendChild(grid);
@@ -58,12 +70,21 @@ export function render() {
   if (!state.currentChildren.length) renderEmptyHint();
 }
 
+/* Плитку можно переиспользовать, только если её данные не менялись */
+function sameData(old, fresh) {
+  return !!old &&
+    old.tagName === fresh.tagName &&
+    old.dataset.url === (fresh.dataset.url || '') &&
+    old.dataset.title === (fresh.dataset.title || '') &&
+    old.dataset.count === (fresh.dataset.count || '');
+}
+
 function backTile() {
   const el = document.createElement('div');
-  el.className = 'tile back';
+  el.className = 'tile back up-target';
   el.title = 'Назад';
-  el.textContent = '←';
   el.addEventListener('click', () => navigateToCrumb(state.breadcrumb.length - 2));
+  setupUpTarget(el, state.breadcrumb.length - 2);
   return el;
 }
 
@@ -83,7 +104,11 @@ function renderBreadcrumbs() {
     el.type = 'button';
     el.className = 'crumb' + (last ? ' current' : '');
     el.textContent = crumb.title || FOLDER_NAME;
-    if (!last) el.addEventListener('click', () => navigateToCrumb(i));
+    if (!last) {
+      el.addEventListener('click', () => navigateToCrumb(i));
+      el.classList.add('up-target');
+      setupUpTarget(el, i);
+    }
     nav.appendChild(el);
   });
   content.appendChild(nav);
@@ -103,36 +128,248 @@ function dragData(e) {
   try { return JSON.parse(e.dataTransfer.getData('text/plain')); } catch { return null; }
 }
 
-function setupDraggable(el, node) {
+/* ---------- Сброс «на уровень выше» (плитка «назад» и крошки) ---------- */
+
+function setupUpTarget(el, crumbIndex) {
+  el.addEventListener('dragover', e => {
+    if (!dragCtx) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragCtx.upEl !== el) {
+      clearUpHover();
+      dragCtx.upEl = el;
+      dragCtx.insertIdx = null;
+      clearShifts();
+      el.classList.add('drag-over');
+    }
+  });
+
+  el.addEventListener('dragleave', e => {
+    if (!dragCtx || dragCtx.upEl !== el || el.contains(e.relatedTarget)) return;
+    clearUpHover();
+  });
+
+  el.addEventListener('drop', e => {
+    if (!dragCtx || dragCtx.upEl !== el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const data = dragData(e);
+    const srcId = dragCtx.el.dataset.id;
+    endDragPreview();
+    if (!data || !data.id || data.id !== srcId) return;
+    moveToAncestor(data.id, crumbIndex);
+  });
+}
+
+function clearUpHover() {
+  if (!dragCtx || !dragCtx.upEl) return;
+  dragCtx.upEl.classList.remove('drag-over');
+  dragCtx.upEl = null;
+}
+
+function moveToAncestor(nodeId, crumbIndex) {
+  const crumb = state.breadcrumb[crumbIndex];
+  moveToFolder(nodeId, crumb.id, state.breadcrumb[crumbIndex + 1].id, crumb.title || FOLDER_NAME);
+}
+
+/* ---------- Drag & Drop с плавным предпросмотром вставки ---------- */
+
+let dragCtx = null;
+
+function setupDraggable(el) {
+  let downX = 0;
+  let downY = 0;
+  el.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    downX = e.clientX;
+    downY = e.clientY;
+  });
+  /* Отпускание почти без движения Chrome считает кликом, а не drag'ом —
+     гасим такой клик, чтобы ссылка не открылась в текущей вкладке */
+  el.addEventListener('click', e => {
+    if (Math.hypot(e.clientX - downX, e.clientY - downY) > 4) e.preventDefault();
+  });
+
   el.addEventListener('dragstart', e => {
-    e.dataTransfer.setData('text/plain', JSON.stringify({ id: node.id }));
+    e.dataTransfer.setData('text/plain', JSON.stringify({ id: el.dataset.id }));
     e.dataTransfer.effectAllowed = 'move';
     el.classList.add('dragging');
+    beginDragPreview(el, e);
   });
 
   el.addEventListener('dragend', () => {
     el.classList.remove('dragging');
-    document.querySelectorAll('.drag-over').forEach(t => t.classList.remove('drag-over'));
+    endDragPreview();
   });
 }
 
-function setupDropReorder(el, node, parentId) {
-  el.addEventListener('dragover', e => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    el.classList.add('drag-over');
+function beginDragPreview(el, e) {
+  const grid = content.querySelector('.grid');
+  if (!grid) return;
+  const tiles = Array.from(grid.children).filter(
+    t => t.dataset.id && !t.classList.contains('back')
+  );
+  const rect = grid.getBoundingClientRect();
+  const originX = rect.left - grid.offsetLeft;
+  const originY = rect.top - grid.offsetTop;
+  const oldIdx = tiles.indexOf(el);
+  const left = tiles.map(t => t.offsetLeft);
+  const top = tiles.map(t => t.offsetTop);
+
+  dragCtx = {
+    el,
+    grid,
+    slots: tiles,
+    oldIdx,
+    originX,
+    originY,
+    left,
+    top,
+    width: tiles.map(t => t.offsetWidth),
+    height: tiles.map(t => t.offsetHeight),
+    /* якорь — центр взятой плитки; пороги обмена симметричны относительно него */
+    startCX: originX + left[oldIdx] + tiles[oldIdx].offsetWidth / 2,
+    startCY: originY + top[oldIdx] + tiles[oldIdx].offsetHeight / 2,
+    startPX: e.clientX,
+    startPY: e.clientY,
+    insertIdx: null,
+    folderEl: null,
+    upEl: null
+  };
+  grid.classList.add('drag-preview');
+  content.classList.add('dnd-active');
+}
+
+function endDragPreview() {
+  if (!dragCtx) return;
+  const { grid, slots, el, folderEl } = dragCtx;
+  slots.forEach(t => { t.style.transform = ''; });
+  el.style.transform = '';
+  if (folderEl) folderEl.classList.remove('drag-over');
+  clearUpHover();
+  grid.classList.remove('drag-preview');
+  content.classList.remove('dnd-active');
+  dragCtx = null;
+}
+
+function clearShifts() {
+  dragCtx.slots.forEach(t => { if (t.style.transform) t.style.transform = ''; });
+}
+
+function applyShifts() {
+  const { el, slots, left, top, oldIdx, insertIdx } = dragCtx;
+
+  slots.forEach((t, f) => {
+    if (t === el) return;
+    let g = f;
+    if (insertIdx > oldIdx && f > oldIdx && f <= insertIdx) g = f - 1;
+    else if (insertIdx < oldIdx && f >= insertIdx && f < oldIdx) g = f + 1;
+    const dx = left[g] - left[f];
+    const dy = top[g] - top[f];
+    t.style.transform = (dx || dy) ? 'translate(' + dx + 'px,' + dy + 'px)' : '';
   });
 
-  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  let dx = 0;
+  let dy = 0;
+  if (insertIdx >= slots.length) {
+    const v = virtualSlot();
+    dx = v.left - left[oldIdx];
+    dy = v.top - top[oldIdx];
+  } else {
+    dx = left[insertIdx] - left[oldIdx];
+    dy = top[insertIdx] - top[oldIdx];
+  }
+  el.style.transform = (dx || dy) ? 'translate(' + dx + 'px,' + dy + 'px)' : '';
+}
 
-  el.addEventListener('drop', e => {
+function virtualSlot() {
+  const { slots, left, top, width, height, grid, originX } = dragCtx;
+  const n = slots.length;
+  const cs = getComputedStyle(grid);
+  const colGap = parseFloat(cs.columnGap) || 0;
+  const rowGap = parseFloat(cs.rowGap) || 0;
+  const lastRight = originX + left[n - 1] + width[n - 1];
+  const gridRight = originX + grid.clientWidth;
+  if (lastRight + colGap + width[n - 1] <= gridRight) {
+    return { left: left[n - 1] + width[n - 1] + colGap, top: top[n - 1] };
+  }
+  return { left: left[0], top: top[n - 1] + height[n - 1] + rowGap };
+}
+
+function calcInsertIndex(x, y) {
+  const { left, top, width, height, originX, originY } = dragCtx;
+  const n = left.length;
+  let best = Math.max(0, n - 1);
+  let bestDist = Infinity;
+  for (let i = 0; i < n; i++) {
+    const dx = x - (originX + left[i] + width[i] / 2);
+    const dy = y - (originY + top[i] + height[i] / 2);
+    const d = dx * dx + dy * dy;
+    if (d < bestDist) {
+      bestDist = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function setupGridDnd(grid) {
+  grid.addEventListener('dragover', e => {
+    if (!dragCtx) return;
+    if (e.target.closest('.up-target')) return;
+    if (dragCtx.upEl) clearUpHover();
     e.preventDefault();
-    el.classList.remove('drag-over');
+    e.dataTransfer.dropEffect = 'move';
+
+    const hit = e.target.closest('.tile.folder');
+    const folderEl = hit && hit !== dragCtx.el ? hit : null;
+
+    if (folderEl !== dragCtx.folderEl) {
+      if (dragCtx.folderEl) dragCtx.folderEl.classList.remove('drag-over');
+      dragCtx.folderEl = folderEl;
+      if (folderEl) {
+        dragCtx.insertIdx = null;
+        clearShifts();
+        folderEl.classList.add('drag-over');
+      }
+    }
+
+    if (!folderEl) {
+      const idx = calcInsertIndex(
+        dragCtx.startCX + (e.clientX - dragCtx.startPX),
+        dragCtx.startCY + (e.clientY - dragCtx.startPY)
+      );
+      if (idx !== dragCtx.insertIdx) {
+        dragCtx.insertIdx = idx;
+        applyShifts();
+      }
+    }
+  });
+
+  grid.addEventListener('dragleave', e => {
+    if (!dragCtx || grid.contains(e.relatedTarget)) return;
+    if (dragCtx.folderEl) {
+      dragCtx.folderEl.classList.remove('drag-over');
+      dragCtx.folderEl = null;
+    }
+    clearUpHover();
+    dragCtx.insertIdx = null;
+    clearShifts();
+  });
+
+  grid.addEventListener('drop', e => {
+    if (!dragCtx) return;
+    e.preventDefault();
+    const ctx = dragCtx;
     const data = dragData(e);
-    if (!data || !data.id || data.id === node.id) return;
-    const targetIdx = childrenOf(parentId).findIndex(n => n.id === node.id);
-    if (targetIdx < 0) return;
-    doMove(data.id, parentId, targetIdx);
+    endDragPreview();
+    if (!data || !data.id || data.id !== ctx.el.dataset.id) return;
+    if (ctx.folderEl) {
+      dropIntoFolder(data.id, ctx.folderEl.dataset.id);
+    } else if (ctx.insertIdx != null) {
+      doMove(data.id, state.currentFolderId, ctx.insertIdx);
+    }
   });
 }
 
@@ -144,23 +381,10 @@ function folderTile(node) {
   el.dataset.parent = state.currentFolderId;
   el.dataset.title = node.title || '';
 
-  setupDraggable(el, node);
+  const count = countItems(node);
+  el.dataset.count = count;
 
-  el.addEventListener('dragover', e => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    el.classList.add('drag-over');
-  });
-
-  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
-
-  el.addEventListener('drop', e => {
-    e.preventDefault();
-    el.classList.remove('drag-over');
-    const data = dragData(e);
-    if (!data || !data.id || data.id === node.id) return;
-    dropIntoFolder(data.id, node.id);
-  });
+  setupDraggable(el);
 
   el.addEventListener('click', () => openFolder(node));
 
@@ -168,10 +392,16 @@ function folderTile(node) {
   preview.className = 'preview';
   preview.textContent = '📁';
 
-  const count = countItems(node);
+  if (count) {
+    const badge = document.createElement('span');
+    badge.className = 'count-badge';
+    badge.textContent = count > 99 ? '99+' : count;
+    preview.appendChild(badge);
+  }
+
   const caption = document.createElement('div');
   caption.className = 'caption';
-  caption.textContent = (node.title || 'Без названия') + (count ? ' (' + count + ')' : '');
+  caption.textContent = node.title || 'Без названия';
 
   el.appendChild(preview);
   el.appendChild(caption);
@@ -192,8 +422,7 @@ function tile(bookmark, parentId) {
   a.dataset.title = bookmark.title || '';
   a.dataset.parent = parentId;
 
-  setupDraggable(a, bookmark);
-  setupDropReorder(a, bookmark, parentId);
+  setupDraggable(a);
 
   const preview = document.createElement('div');
   preview.className = 'preview';
@@ -217,15 +446,27 @@ function previewImage(bookmark) {
     img.parentElement.appendChild(fallback(bookmark.title));
   };
 
-  const key = previewKey(bookmark.url);
-  chrome.storage.local.get(key, result => {
-    const cached = result[key];
-    if (cached) {
+  const pKey = previewKey(bookmark.url);
+  const fKey = faviconKey(bookmark.url);
+  chrome.storage.local.get([pKey, fKey], result => {
+    if (result[pKey]) {
       img.className = 'thumb';
-      img.src = cached;
+      img.src = result[pKey];
+    } else if (result[fKey]) {
+      img.className = 'favicon';
+      img.src = result[fKey];
     } else {
-      img.src = favicon(bookmark.url);
+      img.className = 'favicon';
+      img.src = PLACEHOLDER;
       img.title = 'Нет превью. ПКМ → Снять превью';
+      fetchFavicon(bookmark.url).then(dataUrl => {
+        if (dataUrl) {
+          chrome.storage.local.set({ [fKey]: dataUrl }, () => {
+            img.src = dataUrl;
+            img.removeAttribute('title');
+          });
+        }
+      });
     }
   });
   return img;
@@ -258,3 +499,12 @@ function renderEmpty() {
 }
 
 search.addEventListener('input', filterTiles);
+
+/* Полный запрет нативного drop-поведения: страница стартовая,
+   любой сброс ссылки/текста сюда иначе ведёт к переходу по URL */
+document.addEventListener('dragenter', e => e.preventDefault());
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  if (dragCtx) endDragPreview();
+});

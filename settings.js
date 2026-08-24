@@ -19,18 +19,12 @@ export function loadGridSettings() {
   });
 }
 
-export function saveGridSettings() {
+function saveGridSettings() {
   const cols = clampGrid(gridColsInput.value);
   const size = tileSizeSelect.value;
   gridColsInput.value = cols;
   chrome.storage.local.set({ goGoGrid: { cols, size } });
   applyGrid(cols, size);
-  settingsPanel.hidden = true;
-  toast('Сетка сохранена: ' + cols + ' колонок, ' + sizeLabel(size));
-}
-
-function sizeLabel(size) {
-  return SIZE_LABELS[size] || size;
 }
 
 function clampGrid(v) {
@@ -45,4 +39,15 @@ export function applyGrid(cols, size) {
   render();
 }
 
-document.getElementById('settingsApply').addEventListener('click', saveGridSettings);
+gridColsInput.addEventListener('change', saveGridSettings);
+tileSizeSelect.addEventListener('change', saveGridSettings);
+
+document.querySelector('.grid-spin-up').addEventListener('click', () => {
+  gridColsInput.value = Math.min(12, (parseInt(gridColsInput.value, 10) || 6) + 1);
+  saveGridSettings();
+});
+
+document.querySelector('.grid-spin-down').addEventListener('click', () => {
+  gridColsInput.value = Math.max(1, (parseInt(gridColsInput.value, 10) || 6) - 1);
+  saveGridSettings();
+});

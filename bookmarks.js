@@ -107,6 +107,19 @@ function subtreeHas(ancestorId, id) {
   return walk(childrenOf(ancestorId));
 }
 
+export function moveToFolder(nodeId, parentId, afterId, label) {
+  chrome.bookmarks.getChildren(parentId, kids => {
+    if (chrome.runtime.lastError) {
+      toast(chrome.runtime.lastError.message, true);
+      return;
+    }
+    let idx = kids.findIndex(n => n.id === afterId);
+    idx = idx < 0 ? kids.length : idx + 1;
+    doMove(nodeId, parentId, idx);
+    if (label) toast('Перемещено в «' + label + '»');
+  });
+}
+
 export function dropIntoFolder(nodeId, folderId) {
   if (!nodeId || !folderId || nodeId === folderId) return;
   if (subtreeHas(nodeId, folderId)) {
@@ -114,18 +127,6 @@ export function dropIntoFolder(nodeId, folderId) {
     return;
   }
   doMove(nodeId, folderId, childrenOf(folderId).length);
-}
-
-export function moveBookmark(el, offset) {
-  const arr = childrenOf(el.dataset.parent);
-  const idx = arr.findIndex(n => n.id === el.dataset.id);
-  if (idx < 0) return;
-  const dst = idx + offset;
-  if (dst < 0 || dst >= arr.length) {
-    toast(offset < 0 ? 'Это уже первая закладка' : 'Это уже последняя закладка', true);
-    return;
-  }
-  doMove(el.dataset.id, el.dataset.parent, dst);
 }
 
 export function deleteBookmark(tile) {
