@@ -131,9 +131,6 @@ const BG_THEMES = {
   }
 };
 
-let currentBg = 'gradient';
-let committedBg = 'gradient';
-
 const THEME_LABELS = {
   gradient: 'Градиент',
   dark: 'Тёмный',
@@ -147,12 +144,9 @@ const THEME_LABELS = {
   aurora: 'Аврора'
 };
 
-const bg = document.getElementById('bg');
-const themePicker = document.getElementById('themePicker');
-const themeBtn = document.getElementById('themeBtn');
-const themeBtnSwatch = document.getElementById('themeBtnSwatch');
-const themeBtnLabel = document.getElementById('themeBtnLabel');
-const themeMenu = document.getElementById('themeMenu');
+let bg, themePicker, themeBtn, themeBtnSwatch, themeBtnLabel, themeMenu;
+let currentBg = 'gradient';
+let committedBg = 'gradient';
 
 export { currentBg };
 
@@ -220,36 +214,6 @@ function closeMenu() {
   themePicker.classList.remove('open');
 }
 
-themeBtn.addEventListener('click', e => {
-  e.stopPropagation();
-  themeMenu.hidden ? openMenu() : closeMenu();
-});
-
-themeMenu.addEventListener('mouseleave', () => {
-  if (!themeMenu.hidden && currentBg !== committedBg) renderTheme(committedBg);
-});
-
-document.addEventListener('mousedown', e => {
-  if (!e.target.closest('#themePicker')) closeMenu();
-});
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeMenu();
-});
-
-export function loadSavedTheme() {
-  chrome.storage.local.get('goGoBg', result => {
-    const saved = result.goGoBg;
-    if (saved && BG_THEMES[saved]) {
-      currentBg = saved;
-      applyTheme(currentBg);
-    }
-  });
-}
-
-export function saveTheme(themeName) {
-  chrome.storage.local.set({ goGoBg: themeName });
-}
-
 function renderTheme(themeName) {
   currentBg = themeName;
   const theme = BG_THEMES[themeName];
@@ -279,9 +243,48 @@ function renderTheme(themeName) {
   document.body.style.color = theme.color ? '#333' : '#fff';
 }
 
+function saveTheme(themeName) {
+  chrome.storage.local.set({ goGoBg: themeName });
+}
+
+export function loadSavedTheme() {
+  chrome.storage.local.get('goGoBg', result => {
+    const saved = result.goGoBg;
+    if (saved && BG_THEMES[saved]) {
+      currentBg = saved;
+      applyTheme(currentBg);
+    }
+  });
+}
+
 export function applyTheme(themeName) {
   currentBg = themeName;
   committedBg = themeName;
   renderTheme(themeName);
   syncMenuActive();
+}
+
+export function initThemes() {
+  bg = document.getElementById('bg');
+  themePicker = document.getElementById('themePicker');
+  themeBtn = document.getElementById('themeBtn');
+  themeBtnSwatch = document.getElementById('themeBtnSwatch');
+  themeBtnLabel = document.getElementById('themeBtnLabel');
+  themeMenu = document.getElementById('themeMenu');
+
+  themeBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    themeMenu.hidden ? openMenu() : closeMenu();
+  });
+
+  themeMenu.addEventListener('mouseleave', () => {
+    if (!themeMenu.hidden && currentBg !== committedBg) renderTheme(committedBg);
+  });
+
+  document.addEventListener('mousedown', e => {
+    if (!e.target.closest('#themePicker')) closeMenu();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeMenu();
+  });
 }

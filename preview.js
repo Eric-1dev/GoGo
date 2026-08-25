@@ -1,6 +1,132 @@
 import { PREVIEW_DELAY, previewKey, faviconKey, host, PLACEHOLDER, SCREENSHOT_DELAY_KEY } from './state.js';
 import { toast } from './toast.js';
 
+let imageModal, imageUrlInput, imageFileBtn, imageFileInput;
+let imageScreenshotBtn, screenshotDelayInput, spinUpBtn, spinDownBtn;
+let imagePreview, imagePreviewImg, imageApply, imageCancel;
+
+let imageTile = null;
+let pendingDataUrl = null;
+
+function closeImageModal() {
+  imageModal.hidden = true;
+  imageTile = null;
+  pendingDataUrl = null;
+}
+
+function closeImageModalOnKey(e) {
+  if (e.key === 'Escape' && !imageModal.hidden) closeImageModal();
+}
+
+function handleImageUrlInput() {
+  let url = imageUrlInput.value.trim();
+  if (!url) {
+    imagePreview.hidden = true;
+    pendingDataUrl = null;
+    imageApply.disabled = true;
+    return;
+  }
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  pendingDataUrl = null;
+  imageApply.disabled = true;
+  imagePreview.hidden = true;
+
+  fetch(url).then(r => {
+    if (!r.ok) throw new Error('fail');
+    return r.blob();
+  }).then(blob => {
+    if (!blob.type.startsWith('image/')) throw new Error('not image');
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      pendingDataUrl = reader.result;
+      imagePreviewImg.src = pendingDataUrl;
+      imagePreview.hidden = false;
+      imageApply.disabled = false;
+    };
+    reader.readAsDataURL(blob);
+  }).catch(() => {
+    imagePreview.hidden = true;
+    pendingDataUrl = null;
+    imageApply.disabled = true;
+  });
+}
+
+function handleScreenshotClick() {
+  if (!imageTile) return;
+  const tile = imageTile;
+  const delay = parseInt(screenshotDelayInput.value, 10) || 5;
+  chrome.storage.local.set({ [SCREENSHOT_DELAY_KEY]: delay });
+  closeImageModal();
+  makePreview(tile, delay);
+}
+
+function handleSpinUp() {
+  screenshotDelayInput.value = Math.min(30, (parseInt(screenshotDelayInput.value, 10) || 5) + 1);
+}
+
+function handleSpinDown() {
+  screenshotDelayInput.value = Math.max(1, (parseInt(screenshotDelayInput.value, 10) || 5) - 1);
+}
+
+function handleFileInput() {
+  const file = imageFileInput.files[0];
+  imageFileInput.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingDataUrl = reader.result;
+    imagePreviewImg.src = pendingDataUrl;
+    imagePreview.hidden = false;
+    imageApply.disabled = false;
+    imageUrlInput.value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleImageApply() {
+  if (!pendingDataUrl || !imageTile) return;
+  const dataUrl = pendingDataUrl;
+  const tile = imageTile;
+  const url = tile.dataset.url;
+  closeImageModal();
+  downscalePreview(dataUrl).then(small => {
+    chrome.storage.local.set({ [previewKey(url)]: small }, () => {
+      document.querySelectorAll('.tile').forEach(t => {
+        if (t.dataset.url === url) updateTilePreview(t, small);
+      });
+      toast('Изображение установлено');
+    });
+  }).catch(() => {
+    toast('Не удалось обработать изображение', true);
+  });
+}
+
+export function initPreview() {
+  imageModal = document.getElementById('imageModal');
+  imageUrlInput = document.getElementById('imageUrl');
+  imageFileBtn = document.getElementById('imageFileBtn');
+  imageFileInput = document.getElementById('imageFileInput');
+  imageScreenshotBtn = document.getElementById('imageScreenshotBtn');
+  screenshotDelayInput = document.getElementById('screenshotDelay');
+  spinUpBtn = document.getElementById('spinUp');
+  spinDownBtn = document.getElementById('spinDown');
+  imagePreview = document.getElementById('imagePreview');
+  imagePreviewImg = document.getElementById('imagePreviewImg');
+  imageApply = document.getElementById('imageApply');
+  imageCancel = document.getElementById('imageCancel');
+
+  imageCancel.addEventListener('click', closeImageModal);
+  imageModal.addEventListener('mousedown', e => { if (e.target === imageModal) closeImageModal(); });
+  document.addEventListener('keydown', closeImageModalOnKey);
+  imageUrlInput.addEventListener('input', handleImageUrlInput);
+  imageFileBtn.addEventListener('click', () => imageFileInput.click());
+  imageScreenshotBtn.addEventListener('click', handleScreenshotClick);
+  spinUpBtn.addEventListener('click', handleSpinUp);
+  spinDownBtn.addEventListener('click', handleSpinDown);
+  imageFileInput.addEventListener('change', handleFileInput);
+  imageApply.addEventListener('click', handleImageApply);
+}
+
 export function makePreview(tile, delay) {
   const url = tile.dataset.url;
   const site = host(url);
@@ -41,15 +167,15 @@ export function downscalePreview(dataUrl) {
     const W = 320, H = 240;
     const img = new Image();
     img.onload = () => {
-      const scale = Math.max(W / img.width, H / img.height);
-      const sw = W / scale, sh = H / scale;
-      const sx = (img.width - sw) / 2, sy = (img.height - sh) / 2;
+      const scale = Math.min(W / img.width, H / img.height);
+      const dw = img.width * scale, dh = img.height * scale;
+      const dx = (W - dw) / 2, dy = (H - dh) / 2;
       const canvas = document.createElement('canvas');
       canvas.width = W;
       canvas.height = H;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
-      resolve(canvas.toDataURL('image/jpeg', 0.7));
+      ctx.drawImage(img, dx, dy, dw, dh);
+      resolve(canvas.toDataURL('image/png'));
     };
     img.onerror = () => reject(new Error('image load failed'));
     img.src = dataUrl;
@@ -81,22 +207,6 @@ export function deletePreview(tile) {
   });
 }
 
-const imageModal = document.getElementById('imageModal');
-const imageUrlInput = document.getElementById('imageUrl');
-const imageFileBtn = document.getElementById('imageFileBtn');
-const imageFileInput = document.getElementById('imageFileInput');
-const imageScreenshotBtn = document.getElementById('imageScreenshotBtn');
-const screenshotDelayInput = document.getElementById('screenshotDelay');
-const spinUpBtn = document.getElementById('spinUp');
-const spinDownBtn = document.getElementById('spinDown');
-const imagePreview = document.getElementById('imagePreview');
-const imagePreviewImg = document.getElementById('imagePreviewImg');
-const imageApply = document.getElementById('imageApply');
-const imageCancel = document.getElementById('imageCancel');
-
-let imageTile = null;
-let pendingDataUrl = null;
-
 export function openImageModal(tile) {
   imageTile = tile;
   pendingDataUrl = null;
@@ -110,106 +220,3 @@ export function openImageModal(tile) {
     screenshotDelayInput.value = r[SCREENSHOT_DELAY_KEY] || 5;
   });
 }
-
-function closeImageModal() {
-  imageModal.hidden = true;
-  imageTile = null;
-  pendingDataUrl = null;
-}
-
-imageCancel.addEventListener('click', closeImageModal);
-
-imageModal.addEventListener('mousedown', e => {
-  if (e.target === imageModal) closeImageModal();
-});
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && !imageModal.hidden) closeImageModal();
-});
-
-imageUrlInput.addEventListener('input', () => {
-  let url = imageUrlInput.value.trim();
-  if (!url) {
-    imagePreview.hidden = true;
-    pendingDataUrl = null;
-    imageApply.disabled = true;
-    return;
-  }
-  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  pendingDataUrl = null;
-  imageApply.disabled = true;
-  imagePreview.hidden = true;
-
-  fetch(url).then(r => {
-    if (!r.ok) throw new Error('fail');
-    return r.blob();
-  }).then(blob => {
-    if (!blob.type.startsWith('image/')) throw new Error('not image');
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      pendingDataUrl = reader.result;
-      imagePreviewImg.src = pendingDataUrl;
-      imagePreview.hidden = false;
-      imageApply.disabled = false;
-    };
-    reader.readAsDataURL(blob);
-  }).catch(() => {
-    imagePreview.hidden = true;
-    pendingDataUrl = null;
-    imageApply.disabled = true;
-  });
-});
-
-imageFileBtn.addEventListener('click', () => imageFileInput.click());
-
-imageScreenshotBtn.addEventListener('click', () => {
-  if (!imageTile) return;
-  const tile = imageTile;
-  const delay = parseInt(screenshotDelayInput.value, 10) || 5;
-  chrome.storage.local.set({ [SCREENSHOT_DELAY_KEY]: delay });
-  closeImageModal();
-  makePreview(tile, delay);
-});
-
-spinUpBtn.addEventListener('click', () => {
-  const v = Math.min(30, (parseInt(screenshotDelayInput.value, 10) || 5) + 1);
-  screenshotDelayInput.value = v;
-});
-
-spinDownBtn.addEventListener('click', () => {
-  const v = Math.max(1, (parseInt(screenshotDelayInput.value, 10) || 5) - 1);
-  screenshotDelayInput.value = v;
-});
-
-imageFileInput.addEventListener('change', () => {
-  const file = imageFileInput.files[0];
-  imageFileInput.value = '';
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    pendingDataUrl = reader.result;
-    imagePreviewImg.src = pendingDataUrl;
-    imagePreview.hidden = false;
-    imageApply.disabled = false;
-    imageUrlInput.value = '';
-  };
-  reader.readAsDataURL(file);
-});
-
-imageApply.addEventListener('click', () => {
-  if (!pendingDataUrl || !imageTile) return;
-  const dataUrl = pendingDataUrl;
-  const tile = imageTile;
-  const url = tile.dataset.url;
-  closeImageModal();
-  downscalePreview(dataUrl).then(small => {
-    chrome.storage.local.set({ [previewKey(url)]: small }, () => {
-      document.querySelectorAll('.tile').forEach(t => {
-        if (t.dataset.url === url) updateTilePreview(t, small);
-      });
-      toast('Изображение установлено');
-    });
-  }).catch(() => {
-    toast('Не удалось обработать изображение', true);
-  });
-});

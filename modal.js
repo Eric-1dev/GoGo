@@ -1,20 +1,15 @@
-import { findFolder, refreshBookmarks } from './bookmarks.js';
+import { findOrCreateFolder, refreshBookmarks } from './bookmarks.js';
 import { state, host } from './state.js';
 import { toast } from './toast.js';
 
-const addModal = document.getElementById('addModal');
-const addModalTitle = document.getElementById('addModalTitle');
-const urlLabel = document.getElementById('urlLabel');
-const newUrlInput = document.getElementById('newUrl');
-const newTitleInput = document.getElementById('newTitle');
-const addForm = document.getElementById('addForm');
-
+let addModal, addModalTitle, urlLabel, newUrlInput, newTitleInput, addForm;
 let editingId = null;
 let folderMode = false;
 
 function setFolderMode(on) {
   folderMode = on;
   urlLabel.hidden = on;
+  newTitleInput.placeholder = on ? 'Название папки' : 'Пусто = домен сайта';
 }
 
 export function openAddModal() {
@@ -58,26 +53,11 @@ export function openEditModal(tile) {
   newUrlInput.focus();
 }
 
-export function closeAddModal() {
+function closeAddModal() {
   addModal.hidden = true;
   editingId = null;
   setFolderMode(false);
 }
-
-document.getElementById('addCancel').addEventListener('click', closeAddModal);
-
-addForm.addEventListener('submit', e => {
-  e.preventDefault();
-  submitAdd();
-});
-
-addModal.addEventListener('mousedown', e => {
-  if (e.target === addModal) closeAddModal();
-});
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && !addModal.hidden) closeAddModal();
-});
 
 function submitAdd() {
   const title = newTitleInput.value.trim();
@@ -124,15 +104,15 @@ function submitAdd() {
   });
 }
 
-function resolveParent() {
-  if (state.currentFolderId) return Promise.resolve(state.currentFolderId);
-  return findFolder().then(folder => {
-    if (!folder) toast('Папка «GoGo» не найдена', true);
-    return folder ? folder.id : null;
-  }).catch(() => {
-    toast('Папка «GoGo» не найдена', true);
+async function resolveParent() {
+  if (state.currentFolderId) return state.currentFolderId;
+  try {
+    const folder = await findOrCreateFolder();
+    return folder.id;
+  } catch {
+    toast('Не удалось создать папку «GoGo»', true);
     return null;
-  });
+  }
 }
 
 function submitFolder(title) {
@@ -164,5 +144,29 @@ function submitFolder(title) {
       toast('Папка создана');
       refreshBookmarks();
     });
+  });
+}
+
+export function initModal() {
+  addModal = document.getElementById('addModal');
+  addModalTitle = document.getElementById('addModalTitle');
+  urlLabel = document.getElementById('urlLabel');
+  newUrlInput = document.getElementById('newUrl');
+  newTitleInput = document.getElementById('newTitle');
+  addForm = document.getElementById('addForm');
+
+  document.getElementById('addCancel').addEventListener('click', closeAddModal);
+
+  addForm.addEventListener('submit', e => {
+    e.preventDefault();
+    submitAdd();
+  });
+
+  addModal.addEventListener('mousedown', e => {
+    if (e.target === addModal) closeAddModal();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !addModal.hidden) closeAddModal();
   });
 }

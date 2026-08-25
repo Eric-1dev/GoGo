@@ -1,0 +1,530 @@
+/* Фон */
+.bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 75%, #1a1a2e 100%);
+}
+
+.bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+/* Фоновые паттерны */
+.bg:not([data-pattern])::after,
+.bg[data-pattern="grid"]::after {
+  background-image:
+    linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+.bg[data-pattern="dots"]::after {
+  background-image: radial-gradient(rgba(255,255,255,.16) 1.5px, transparent 1.6px);
+  background-size: 26px 26px;
+}
+
+body.light-ui .bg[data-pattern="dots"]::after {
+  background-image: radial-gradient(rgba(0,0,0,.13) 1.5px, transparent 1.6px);
+}
+
+.bg[data-pattern="waves"]::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='140'%3E%3Cpath d='M0 70 Q32.5 40 65 70 T130 70 T195 70 T260 70' fill='none' stroke='white' stroke-opacity='.07' stroke-width='3'/%3E%3Cpath d='M0 70 Q32.5 100 65 70 T130 70 T195 70 T260 70' fill='none' stroke='white' stroke-opacity='.04' stroke-width='2'/%3E%3C/svg%3E");
+}
+
+.bg[data-pattern="bands"]::after {
+  background-image: repeating-linear-gradient(180deg,
+    transparent 0 44px, rgba(255,255,255,.05) 44px 56px);
+}
+
+.bg[data-pattern="diag"]::after {
+  background-image: repeating-linear-gradient(45deg,
+    rgba(255,255,255,.05) 0 2px, transparent 2px 20px);
+}
+
+/* Орбы */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: .3;
+  animation: float 14s ease-in-out infinite;
+  transition: all .3s ease;
+}
+
+.orb1 { width: 420px; height: 420px; background: #ff5e62; top: -120px; left: -100px; }
+.orb2 { width: 360px; height: 360px; background: #7909a4; bottom: -100px; right: -80px; animation-delay: -4s; }
+.orb3 { width: 300px; height: 300px; background: #0fb8ad; top: 40%; right: 20%; animation-delay: -8s; }
+.orb4 { width: 240px; height: 240px; background: #f9c74f; bottom: 15%; left: 25%; animation-delay: -11s; }
+
+.bg[data-orb-anim="drift"] .orb {
+  animation-name: drift;
+  animation-duration: 22s;
+}
+
+.bg[data-orb-anim="pulse"] .orb {
+  animation-name: pulse;
+  animation-duration: 9s;
+}
+
+.bg[data-orb-anim="still"] .orb {
+  animation: none;
+}
+
+/* Шапка */
+header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 28px 40px;
+  max-width: var(--content-max, 1400px);
+  margin: 0 auto;
+  width: 100%;
+}
+
+.logo {
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  cursor: pointer;
+  user-select: none;
+}
+
+#search {
+  flex: 1;
+  max-width: 480px;
+  padding: 12px 20px;
+  font-size: 15px;
+  color: #fff;
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 30px;
+  outline: none;
+  backdrop-filter: blur(8px);
+  transition: all .3s;
+}
+
+#search::placeholder { color: rgba(255,255,255,.55); }
+#search:focus {
+  border-color: var(--accent);
+  background: rgba(255,255,255,.16);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* Правая часть шапки */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+/* Переключатель темы */
+.theme-picker-inline { position: relative; flex: 1; min-width: 0; }
+
+.theme-btn-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #fff;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 10px;
+  outline: none;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.theme-btn-inline:hover {
+  background: rgba(255,255,255,.13);
+  border-color: rgba(255,255,255,.3);
+}
+
+.theme-picker-inline.open .theme-btn-inline {
+  border-color: var(--accent);
+}
+
+.theme-btn-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.4);
+  box-shadow: inset 0 0 4px rgba(0,0,0,.25), 0 1px 3px rgba(0,0,0,.25);
+  flex-shrink: 0;
+}
+
+.theme-menu-inline {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 200px;
+  z-index: 200;
+  display: grid;
+  gap: 2px;
+  max-height: 350px;
+  overflow-y: auto;
+  padding: 5px;
+  background: rgba(18,18,36,.92);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 12px;
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 12px 32px rgba(0,0,0,.5);
+  animation: themeMenuIn .18s ease;
+}
+
+.theme-menu-inline[hidden] { display: none; }
+
+.theme-menu-inline::-webkit-scrollbar { width: 5px; }
+.theme-menu-inline::-webkit-scrollbar-track { background: transparent; }
+.theme-menu-inline::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.2);
+  border-radius: 3px;
+}
+
+.theme-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #fff;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .15s;
+}
+
+.theme-item:hover {
+  background: rgba(255,255,255,.12);
+  border-color: rgba(255,255,255,.15);
+  transform: translateX(3px);
+}
+
+.theme-swatch {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.35);
+  box-shadow: inset 0 0 6px rgba(0,0,0,.25), 0 2px 6px rgba(0,0,0,.3);
+}
+
+.theme-name { flex: 1; }
+
+.theme-check {
+  font-size: 12px;
+  color: var(--accent);
+  opacity: 0;
+  transform: scale(.4);
+  transition: all .18s;
+}
+
+.theme-item.active { background: rgba(255,255,255,.07); }
+.theme-item.active .theme-check { opacity: 1; transform: scale(1); }
+
+.settings-wrap { position: relative; }
+
+.settings-btn {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #fff;
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 50%;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all .2s;
+}
+
+.settings-btn:hover {
+  background: rgba(255,255,255,.2);
+  transform: rotate(45deg);
+}
+
+.settings-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 12px);
+  min-width: 220px;
+  padding: 18px;
+  background: rgba(28,28,48,.97);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.55);
+  backdrop-filter: blur(12px);
+  z-index: 1002;
+}
+
+.settings-panel h3 {
+  font-size: 15px;
+  margin-bottom: 14px;
+}
+
+.settings-panel label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.settings-panel .delay-spin {
+  width: 80px;
+  height: 32px;
+}
+
+.settings-panel .delay-spin input {
+  padding: 6px 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-panel .spin-btns button {
+  font-size: 8px;
+}
+
+.settings-panel .delay-spin:focus-within {
+  border-color: var(--accent);
+}
+
+.settings-panel select {
+  width: 110px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+}
+
+.settings-panel select option { background: #1a1a2e; color: #fff; }
+
+.settings-panel select:focus {
+  border-color: var(--accent);
+}
+
+.settings-panel hr {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,.15);
+  margin: 12px 0;
+}
+
+#exportBtn, #importBtn {
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+#exportBtn:hover, #importBtn:hover {
+  background: rgba(255,255,255,.2);
+}
+
+/* Контент */
+main {
+  padding: 20px 40px 60px;
+  max-width: var(--content-max, 1400px);
+  margin: 0 auto;
+  width: 100%;
+}
+
+.group-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 30px 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.group-title::before {
+  content: "";
+  width: 8px;
+  height: 22px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--accent), var(--accent2));
+}
+
+.group:first-child .group-title { margin-top: 6px; }
+
+/* Сетка */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-cols, 6), 1fr);
+  grid-auto-rows: minmax(100px, auto);
+  gap: var(--grid-gap);
+  width: 100%;
+}
+
+.tile-more {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: rgba(255,255,255,.5);
+  font-size: 14px;
+  padding-top: 6px;
+}
+
+/* Хлебные крошки */
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0 20px;
+}
+
+.crumb {
+  font-family: inherit;
+  font-size: 14px;
+  color: rgba(255,255,255,.65);
+  background: rgba(255,255,255,.08);
+  border: 1px solid transparent;
+  padding: 5px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+button.crumb:hover {
+  background: rgba(255,255,255,.18);
+  color: #fff;
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.crumb.current {
+  color: #fff;
+  font-weight: 600;
+  cursor: default;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-color: transparent;
+}
+
+.crumb-sep {
+  color: rgba(255,255,255,.35);
+  user-select: none;
+}
+
+.empty.compact { margin-top: 10vh; }
+.empty.compact .icon { font-size: 54px; }
+.empty.compact h2 { margin: 12px 0 8px; font-size: 20px; }
+
+/* Светлые темы — шапка */
+body.light-ui #search,
+body.light-ui .theme-btn-inline,
+body.light-ui .settings-btn {
+  color: #333;
+  border-color: rgba(0,0,0,.2);
+}
+
+body.light-ui #search::placeholder { color: rgba(0,0,0,.45); }
+
+body.light-ui .theme-btn-swatch { border-color: rgba(0,0,0,.3); box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+
+body.light-ui .theme-menu-inline {
+  background: rgba(255,244,248,.94);
+  border-color: rgba(0,0,0,.12);
+  box-shadow: 0 12px 32px rgba(120,50,90,.25);
+}
+
+body.light-ui .theme-item { color: #333; }
+body.light-ui .theme-item:hover {
+  background: rgba(0,0,0,.07);
+  border-color: rgba(0,0,0,.08);
+}
+body.light-ui .theme-item.active { background: rgba(0,0,0,.05); }
+body.light-ui .theme-swatch { border-color: rgba(0,0,0,.2); }
+
+body.light-ui .settings-panel .delay-spin,
+body.light-ui .settings-panel select {
+  color: #333;
+  border-color: rgba(0,0,0,.2);
+}
+
+body.light-ui .delay-spin input {
+  color: #333;
+  background: rgba(0,0,0,.05);
+}
+
+body.light-ui .delay-spin input:focus {
+  background: rgba(0,0,0,.08);
+}
+
+body.light-ui .spin-btns {
+  border-left-color: rgba(0,0,0,.1);
+  background: rgba(0,0,0,.05);
+}
+
+body.light-ui .spin-btns button {
+  color: rgba(0,0,0,.4);
+  background: rgba(0,0,0,.04);
+}
+
+body.light-ui .spin-btns button:first-child {
+  border-bottom-color: rgba(0,0,0,.1);
+}
+
+body.light-ui .spin-btns button:hover {
+  color: #333;
+  background: rgba(0,0,0,.08);
+}
+
+/* Светлые темы — крошки и пустое состояние */
+body.light-ui .crumb {
+  color: rgba(0,0,0,.6);
+  background: rgba(0,0,0,.06);
+}
+
+body.light-ui button.crumb:hover {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+body.light-ui .crumb.current { color: #fff; }
+body.light-ui .crumb-sep { color: rgba(0,0,0,.35); }
+body.light-ui .empty p { color: rgba(0,0,0,.55); }
+body.light-ui .empty code { background: rgba(0,0,0,.08); }
+body.light-ui .tile-more { color: rgba(0,0,0,.5); }
+
+/* Светлые темы — зона DnD */
+body.light-ui .dnd-active .breadcrumbs {
+  outline-color: rgba(0,0,0,.22);
+}
+
+body.light-ui .dnd-active .breadcrumbs::after {
+  color: rgba(0,0,0,.5);
+}
+
+body.light-ui .dnd-active .tile.back {
+  border-color: rgba(0,0,0,.35);
+}
+
+body.light-ui button.crumb.drag-over,
+body.light-ui .crumb.drag-over {
+  color: #333;
+}

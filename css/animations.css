@@ -1,0 +1,40 @@
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(40px, -50px) scale(1.15); }
+  66%      { transform: translate(-30px, 30px) scale(.9); }
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(-30px, 10px) scale(1); }
+  33%      { transform: translate(50px, -20px) scale(1.08); }
+  66%      { transform: translate(-10px, 45px) scale(.94); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.25); }
+}
+
+@keyframes pop {
+  from { opacity: 0; transform: translateY(20px) scale(.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(24px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes upPulse {
+  50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 18%, transparent); }
+}
+
+@keyframes themeMenuIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}

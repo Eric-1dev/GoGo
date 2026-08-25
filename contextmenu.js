@@ -3,52 +3,7 @@ import { deletePreview, openImageModal } from './preview.js';
 import { deleteBookmark, disbandFolder, deleteFolder, childrenOf, refreshBookmarks } from './bookmarks.js';
 import { toast } from './toast.js';
 
-const ctxMenu = document.getElementById('ctxMenu');
-let ctxTarget = null;
-
-document.addEventListener('contextmenu', e => {
-  e.preventDefault();
-  ctxTarget = null;
-
-  const tile = e.target.closest('.tile');
-  if (tile && tile.classList.contains('folder')) {
-    ctxTarget = tile;
-    const items = [
-      { act: 'rename', label: '✏️ Переименовать папку' }
-    ];
-    if (childrenOf(tile.dataset.id).length) {
-      items.push(
-        { act: 'disband', label: '📂 Распустить папку' },
-        { act: 'deleteFull', label: '✖ Удалить с содержимым', danger: true }
-      );
-    } else {
-      items.push({ act: 'deleteEmpty', label: '✖ Удалить папку', danger: true });
-    }
-    showCtxMenu(e.clientX, e.clientY, items);
-    return;
-  }
-  if (tile) {
-    ctxTarget = tile;
-    const items = [
-      { act: 'edit', label: '✏️ Изменить закладку' },
-      { act: 'setimage', label: '🖼 Установить изображение' }
-    ];
-    if (tile.querySelector('.preview img.thumb')) {
-      items.push({ act: 'delpreview', label: '🗑 Удалить изображение' });
-    }
-    items.push(
-      { act: 'open', label: '↗ Открыть в новой вкладке' },
-      { act: 'delete', label: '✖ Удалить закладку', danger: true }
-    );
-    showCtxMenu(e.clientX, e.clientY, items);
-  } else {
-    showCtxMenu(e.clientX, e.clientY, [
-      { act: 'add', label: '➕ Добавить закладку' },
-      { act: 'addFolder', label: '📁 Создать папку' },
-      { act: 'reloadView', label: '🔄 Обновить' }
-    ]);
-  }
-});
+let ctxMenu, ctxTarget;
 
 function showCtxMenu(x, y, items) {
   ctxMenu.innerHTML = '';
@@ -65,33 +20,81 @@ function showCtxMenu(x, y, items) {
   ctxMenu.style.top = Math.min(y, window.innerHeight - rect.height - 8) + 'px';
 }
 
-ctxMenu.addEventListener('click', e => {
-  const item = e.target.closest('.ctx-item');
-  if (!item) return;
-  const act = item.dataset.act;
-  const tile = ctxTarget;
-  closeCtxMenu();
-  if (act === 'add') { openAddModal(); return; }
-  if (act === 'addFolder') { openAddFolderModal(); return; }
-  if (act === 'reloadView') { refreshBookmarks(); toast('Обновлено'); return; }
-  if (act === 'rename') { if (tile) openEditFolderModal(tile); return; }
-  if (act === 'disband') { if (tile) disbandFolder(tile); return; }
-  if (act === 'deleteFull') { if (tile) deleteFolder(tile, true); return; }
-  if (act === 'deleteEmpty') { if (tile) deleteFolder(tile, false); return; }
-  if (!tile) return;
-  if (act === 'edit') openEditModal(tile);
-  if (act === 'setimage') openImageModal(tile);
-  if (act === 'delpreview') deletePreview(tile);
-  if (act === 'open') window.open(tile.href, '_blank', 'noopener');
-  if (act === 'delete') deleteBookmark(tile);
-});
-
 function closeCtxMenu() {
   ctxMenu.hidden = true;
   ctxTarget = null;
 }
 
-document.addEventListener('click', closeCtxMenu);
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCtxMenu(); });
-window.addEventListener('resize', closeCtxMenu);
-window.addEventListener('scroll', closeCtxMenu, true);
+export function initContextMenu() {
+  ctxMenu = document.getElementById('ctxMenu');
+
+  document.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    ctxTarget = null;
+
+    const tile = e.target.closest('.tile');
+    if (tile && tile.classList.contains('folder')) {
+      ctxTarget = tile;
+      const items = [
+        { act: 'rename', label: '✏️ Переименовать папку' }
+      ];
+      if (childrenOf(tile.dataset.id).length) {
+        items.push(
+          { act: 'disband', label: '📂 Распустить папку' },
+          { act: 'deleteFull', label: '✖ Удалить с содержимым', danger: true }
+        );
+      } else {
+        items.push({ act: 'deleteEmpty', label: '✖ Удалить папку', danger: true });
+      }
+      showCtxMenu(e.clientX, e.clientY, items);
+      return;
+    }
+    if (tile) {
+      ctxTarget = tile;
+      const items = [
+        { act: 'edit', label: '✏️ Изменить закладку' },
+        { act: 'setimage', label: '🖼 Установить изображение' }
+      ];
+      if (tile.querySelector('.preview img.thumb')) {
+        items.push({ act: 'delpreview', label: '🗑 Удалить изображение' });
+      }
+      items.push(
+        { act: 'open', label: '↗ Открыть в новой вкладке' },
+        { act: 'delete', label: '✖ Удалить закладку', danger: true }
+      );
+      showCtxMenu(e.clientX, e.clientY, items);
+    } else {
+      showCtxMenu(e.clientX, e.clientY, [
+        { act: 'add', label: '➕ Добавить закладку' },
+        { act: 'addFolder', label: '📁 Создать папку' },
+        { act: 'reloadView', label: '🔄 Обновить' }
+      ]);
+    }
+  });
+
+  ctxMenu.addEventListener('click', e => {
+    const item = e.target.closest('.ctx-item');
+    if (!item) return;
+    const act = item.dataset.act;
+    const tile = ctxTarget;
+    closeCtxMenu();
+    if (act === 'add') { openAddModal(); return; }
+    if (act === 'addFolder') { openAddFolderModal(); return; }
+    if (act === 'reloadView') { refreshBookmarks(); toast('Обновлено'); return; }
+    if (act === 'rename') { if (tile) openEditFolderModal(tile); return; }
+    if (act === 'disband') { if (tile) disbandFolder(tile); return; }
+    if (act === 'deleteFull') { if (tile) deleteFolder(tile, true); return; }
+    if (act === 'deleteEmpty') { if (tile) deleteFolder(tile, false); return; }
+    if (!tile) return;
+    if (act === 'edit') openEditModal(tile);
+    if (act === 'setimage') openImageModal(tile);
+    if (act === 'delpreview') deletePreview(tile);
+    if (act === 'open') window.open(tile.href, '_blank', 'noopener');
+    if (act === 'delete') deleteBookmark(tile);
+  });
+
+  document.addEventListener('click', closeCtxMenu);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCtxMenu(); });
+  window.addEventListener('resize', closeCtxMenu);
+  window.addEventListener('scroll', closeCtxMenu, true);
+}

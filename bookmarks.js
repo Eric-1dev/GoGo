@@ -12,6 +12,14 @@ export async function findFolder() {
   return searchIn(root);
 }
 
+export async function findOrCreateFolder() {
+  const folder = await findFolder();
+  if (folder) return folder;
+  const [root] = await chrome.bookmarks.getTree();
+  const parentId = (root.children && root.children[0] && root.children[0].id) || root.id;
+  return chrome.bookmarks.create({ parentId, title: FOLDER_NAME });
+}
+
 function searchIn(node) {
   if (!node.children) return null;
   for (const child of node.children) {
@@ -20,11 +28,6 @@ function searchIn(node) {
     if (found) return found;
   }
   return null;
-}
-
-async function loadTree(folderId) {
-  const [tree] = await chrome.bookmarks.getSubTree(folderId);
-  return tree;
 }
 
 export async function refreshBookmarks() {
@@ -38,13 +41,21 @@ export async function refreshBookmarks() {
     state.breadcrumb = [{ id: root.id, title: root.title || FOLDER_NAME }];
   }
 
-  let tree = null;
   const targetId = state.currentFolderId || root.id;
-  try { tree = await loadTree(targetId); } catch { tree = null; }
+  let tree = null;
+  try {
+    tree = await chrome.bookmarks.getSubTree(targetId);
+    tree = tree[0];
+  } catch {
+    tree = null;
+  }
 
   if (!tree || tree.url) {
     state.breadcrumb = [{ id: root.id, title: root.title || FOLDER_NAME }];
-    try { tree = await loadTree(root.id); } catch { return; }
+    try {
+      const rootTree = await chrome.bookmarks.getSubTree(root.id);
+      tree = rootTree[0];
+    } catch { return; }
     if (!tree) return;
   }
 
@@ -65,14 +76,16 @@ export function navigateToCrumb(index) {
 
 async function navigateTo(folderId) {
   let tree;
-  try { tree = await loadTree(folderId); } catch { return; }
+  try {
+    const result = await chrome.bookmarks.getSubTree(folderId);
+    tree = result[0];
+  } catch { return; }
   if (!tree || tree.url) return;
   state.currentFolderId = tree.id;
   state.currentChildren = tree.children || [];
   if (renderCallback) renderCallback();
 }
 
-/* ---------- Перемещение закладок ---------- */
 export function childrenOf(parentId) {
   if (parentId === state.currentFolderId) return state.currentChildren;
   const walk = nodes => {
@@ -88,17 +101,17 @@ export function childrenOf(parentId) {
   return walk(state.currentChildren) || [];
 }
 
-export function doMove(id, parentId, index) {
+export async function doMove(id, parentId, index) {
   const arr = childrenOf(parentId);
   const oldIdx = arr.findIndex(n => n.id === id);
   if (oldIdx >= 0 && oldIdx < index) index += 1;
-  chrome.bookmarks.move(id, { parentId, index }, () => {
-    if (chrome.runtime.lastError) {
-      toast(chrome.runtime.lastError.message, true);
-      return;
-    }
-    refreshBookmarks();
-  });
+  try {
+    await chrome.bookmarks.move(id, { parentId, index });
+  } catch (err) {
+    toast(err.message, true);
+    return;
+  }
+  refreshBookmarks();
 }
 
 function subtreeHas(ancestorId, id) {
@@ -107,89 +120,78 @@ function subtreeHas(ancestorId, id) {
   return walk(childrenOf(ancestorId));
 }
 
-export function moveToFolder(nodeId, parentId, afterId, label) {
-  chrome.bookmarks.getChildren(parentId, kids => {
-    if (chrome.runtime.lastError) {
-      toast(chrome.runtime.lastError.message, true);
-      return;
-    }
-    let idx = kids.findIndex(n => n.id === afterId);
-    idx = idx < 0 ? kids.length : idx + 1;
-    doMove(nodeId, parentId, idx);
-    if (label) toast('Перемещено в «' + label + '»');
-  });
+export async function moveToFolder(nodeId, parentId, afterId, label) {
+  let kids;
+  try {
+    kids = await chrome.bookmarks.getChildren(parentId);
+  } catch (err) {
+    toast(err.message, true);
+    return;
+  }
+  let idx = kids.findIndex(n => n.id === afterId);
+  idx = idx < 0 ? kids.length : idx + 1;
+  await doMove(nodeId, parentId, idx);
+  if (label) toast('Перемещено в «' + label + '»');
 }
 
-export function dropIntoFolder(nodeId, folderId) {
+export async function dropIntoFolder(nodeId, folderId) {
   if (!nodeId || !folderId || nodeId === folderId) return;
   if (subtreeHas(nodeId, folderId)) {
     toast('Нельзя переместить папку внутрь самой себя', true);
     return;
   }
-  doMove(nodeId, folderId, childrenOf(folderId).length);
+  await doMove(nodeId, folderId, childrenOf(folderId).length);
 }
 
-export function deleteBookmark(tile) {
+export async function deleteBookmark(tile) {
   const id = tile.dataset.id;
   if (!id) return;
   if (!confirm('Удалить закладку «' + tile.textContent.trim() + '»?')) return;
-  chrome.bookmarks.remove(id, () => {
-    if (chrome.runtime.lastError) {
-      console.error(chrome.runtime.lastError.message);
-      return;
-    }
+  try {
+    await chrome.bookmarks.remove(id);
     tile.remove();
-  });
+  } catch (err) {
+    console.error(err.message);
+  }
 }
-
-/* ---------- Папки ---------- */
 
 function countDeep(id) {
   return childrenOf(id).reduce((sum, n) => sum + (n.url ? 1 : countDeep(n.id)), 0);
 }
 
-export function disbandFolder(tileEl) {
+export async function disbandFolder(tileEl) {
   const id = tileEl.dataset.id;
   const parentId = tileEl.dataset.parent;
   if (!id || !parentId) return;
   const name = tileEl.dataset.title || 'папку';
   if (!confirm('Распустить папку «' + name + '»? Содержимое переедет на уровень выше.')) return;
   const kids = childrenOf(id);
-  const after = () => {
-    if (chrome.runtime.lastError) {
-      toast(chrome.runtime.lastError.message, true);
-      return;
-    }
+  if (!kids.length) {
+    try { await chrome.bookmarks.remove(id); } catch (err) { toast(err.message, true); return; }
     refreshBookmarks();
-  };
-  let pending = kids.length;
-  if (!pending) {
-    chrome.bookmarks.remove(id, after);
     return;
   }
-  kids.forEach(n => chrome.bookmarks.move(n.id, { parentId }, () => {
-    pending -= 1;
-    if (chrome.runtime.lastError || pending === 0) chrome.bookmarks.remove(id, after);
-  }));
+  try {
+    await Promise.all(kids.map(n => chrome.bookmarks.move(n.id, { parentId })));
+    await chrome.bookmarks.remove(id);
+  } catch (err) {
+    toast(err.message, true);
+    return;
+  }
+  refreshBookmarks();
 }
 
-export function deleteFolder(tileEl, full) {
+export async function deleteFolder(tileEl, full) {
   const id = tileEl.dataset.id;
   if (!id) return;
   const name = tileEl.dataset.title || 'папка';
-  const done = () => {
-    if (chrome.runtime.lastError) {
-      toast(chrome.runtime.lastError.message, true);
-      return;
-    }
-    refreshBookmarks();
-  };
   if (full) {
     const count = countDeep(id);
     if (!confirm('Удалить папку «' + name + '» и всё её содержимое (' + count + ' шт.)?')) return;
-    chrome.bookmarks.removeTree(id, done);
+    try { await chrome.bookmarks.removeTree(id); } catch (err) { toast(err.message, true); return; }
   } else {
     if (!confirm('Удалить папку «' + name + '»?')) return;
-    chrome.bookmarks.remove(id, done);
+    try { await chrome.bookmarks.remove(id); } catch (err) { toast(err.message, true); return; }
   }
+  refreshBookmarks();
 }
