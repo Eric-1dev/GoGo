@@ -404,6 +404,7 @@ main {
   font-size: 14px;
   color: rgba(255,255,255,.65);
   background: rgba(255,255,255,.08);
+  background-origin: border-box;
   border: 1px solid transparent;
   padding: 5px 14px;
   border-radius: 20px;
@@ -421,12 +422,17 @@ button.crumb:hover {
   color: #fff;
   font-weight: 600;
   cursor: default;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  background-image: linear-gradient(90deg, var(--accent), var(--accent2));
   border-color: transparent;
 }
 
 .crumb-sep {
-  color: rgba(255,255,255,.35);
+  position: relative;
+  top: -2px;
+  color: rgba(255,255,255,.6);
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 2px;
   user-select: none;
 }
 
@@ -506,7 +512,7 @@ body.light-ui button.crumb:hover {
 }
 
 body.light-ui .crumb.current { color: #fff; }
-body.light-ui .crumb-sep { color: rgba(0,0,0,.35); }
+body.light-ui .crumb-sep { color: rgba(0,0,0,.5); }
 body.light-ui .empty p { color: rgba(0,0,0,.55); }
 body.light-ui .empty code { background: rgba(0,0,0,.08); }
 body.light-ui .tile-more { color: rgba(0,0,0,.5); }
